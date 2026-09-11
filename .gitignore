@@ -1,0 +1,23 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# Playwright & Screenshots
+screenshots/
+*.png
+*.jpg
+.playwright/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -1,0 +1,109 @@
+name: SPADA UPNYK Auto Presence
+
+on:
+  # Trigger otomatis sesuai jam kuliah (WIB = UTC + 7)
+  schedule:
+    # SENIN (Monday = 1)
+    - cron: '5 3 * * 1'    # 10:05 WIB - Sistem Operasi
+    - cron: '2 6 * * 1'    # 13:02 WIB - Praktikum Data Science
+    - cron: '52 7 * * 1'   # 14:52 WIB - Administrasi Server
+
+    # SELASA (Tuesday = 2)
+    - cron: '5 0 * * 2'    # 07:05 WIB - Internet of Things (IoT)
+    - cron: '5 3 * * 2'    # 10:05 WIB - Manajemen Proyek Perangkat Lunak
+    - cron: '2 6 * * 2'    # 13:02 WIB - Praktikum IoT
+
+    # KAMIS (Thursday = 4)
+    - cron: '27 0 * * 4'   # 07:27 WIB - Kriptografi
+    - cron: '32 5 * * 4'   # 12:32 WIB - Data Science
+
+    # JUMAT (Friday = 5)
+    - cron: '5 6 * * 5'    # 13:05 WIB - Pengolahan Citra
+    - cron: '32 8 * * 5'   # 15:32 WIB - Penginderaan Jarak Jauh
+
+    # SABTU (Saturday = 6)
+    - cron: '5 0 * * 6'    # 07:05 WIB - Kapita Selekta
+
+  # Trigger Manual lewat menu GitHub Actions
+  workflow_dispatch:
+    inputs:
+      course:
+        description: 'Pilih Matkul (kosongkan untuk Auto sesuai jadwal)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - all
+          - sistem-operasi
+          - praktikum-data-science
+          - administrasi-server
+          - iot
+          - mppl
+          - praktikum-iot
+          - kriptografi
+          - data-science
+          - pengolahan-citra
+          - penginderaan-jarak-jauh
+          - kapita-selekta
+      token:
+        description: 'Password / Token Presensi dari Dosen (jika ada)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  run-attendance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Execute Attendance
+        env:
+          SPADA_USERNAME: ${{ secrets.SPADA_USERNAME }}
+          SPADA_PASSWORD: ${{ secrets.SPADA_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TIMEZONE: "Asia/Jakarta"
+          HEADLESS: "true"
+        run: |
+          COURSE_INPUT="${{ github.event.inputs.course }}"
+          TOKEN_INPUT="${{ github.event.inputs.token }}"
+
+          CMD_ARGS=""
+          if [ -z "$COURSE_INPUT" ] || [ "$COURSE_INPUT" = "auto" ]; then
+            CMD_ARGS="--auto"
+          elif [ "$COURSE_INPUT" = "all" ]; then
+            CMD_ARGS="--all"
+          else
+            CMD_ARGS="--course $COURSE_INPUT"
+          fi
+
+          if [ -n "$TOKEN_INPUT" ]; then
+            CMD_ARGS="$CMD_ARGS --token $TOKEN_INPUT"
+          fi
+
+          echo "Menjalankan presensi dengan argumen: $CMD_ARGS"
+          python main.py $CMD_ARGS
+
+      - name: Upload Screenshot Artifacts (Opsional jika gagal/butuh cek)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: attendance-screenshots
+          path: screenshots/*.png
+          retention-days: 7
