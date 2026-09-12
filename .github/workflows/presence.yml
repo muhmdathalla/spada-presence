@@ -1,34 +1,28 @@
 name: SPADA UPNYK Auto Presence
 
 on:
-  # Trigger otomatis sesuai jam kuliah (WIB = UTC + 7)
+  # Penjadwalan cerdas: Cek otomatis setiap 10 menit selama jam perkuliahan berlangsung (WIB = UTC + 7)
   schedule:
-    # SENIN (Monday = 1)
-    - cron: '5 3 * * 1'    # 10:05 WIB - Sistem Operasi
-    - cron: '2 6 * * 1'    # 13:02 WIB - Praktikum Data Science
-    - cron: '52 7 * * 1'   # 14:52 WIB - Administrasi Server
+    # SENIN: Rentang 10:00 - 15:40 WIB (03:00 - 08:40 UTC)
+    - cron: '*/10 3-8 * * 1'
 
-    # SELASA (Tuesday = 2)
-    - cron: '5 0 * * 2'    # 07:05 WIB - Internet of Things (IoT)
-    - cron: '5 3 * * 2'    # 10:05 WIB - Manajemen Proyek Perangkat Lunak
-    - cron: '2 6 * * 2'    # 13:02 WIB - Praktikum IoT
+    # SELASA: Rentang 07:00 - 13:30 WIB (00:00 - 06:30 UTC)
+    - cron: '*/10 0-6 * * 2'
 
-    # KAMIS (Thursday = 4)
-    - cron: '27 0 * * 4'   # 07:27 WIB - Kriptografi
-    - cron: '32 5 * * 4'   # 12:32 WIB - Data Science
+    # KAMIS: Rentang 07:20 - 13:00 WIB (00:20 - 06:00 UTC)
+    - cron: '*/10 0-6 * * 4'
 
-    # JUMAT (Friday = 5)
-    - cron: '5 6 * * 5'    # 13:05 WIB - Pengolahan Citra
-    - cron: '32 8 * * 5'   # 15:32 WIB - Penginderaan Jarak Jauh
+    # JUMAT: Rentang 13:00 - 18:00 WIB (06:00 - 11:00 UTC)
+    - cron: '*/10 6-11 * * 5'
 
-    # SABTU (Saturday = 6)
-    - cron: '5 0 * * 6'    # 07:05 WIB - Kapita Selekta
+    # SABTU: Rentang 07:00 - 09:10 WIB (00:00 - 02:10 UTC)
+    - cron: '*/10 0-2 * * 6'
 
-  # Trigger Manual lewat menu GitHub Actions
+  # Trigger Manual lewat menu GitHub Actions (Kapan saja)
   workflow_dispatch:
     inputs:
       course:
-        description: 'Pilih Matkul (kosongkan untuk Auto sesuai jadwal)'
+        description: 'Pilih Matkul (atau pilih auto)'
         required: false
         default: 'auto'
         type: choice
@@ -51,6 +45,11 @@ on:
         required: false
         default: ''
         type: string
+
+# Mencegah duplikasi run jika ada trigger beruntun
+concurrency:
+  group: presence-${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   run-attendance:
@@ -100,10 +99,10 @@ jobs:
           echo "Menjalankan presensi dengan argumen: $CMD_ARGS"
           python main.py $CMD_ARGS
 
-      - name: Upload Screenshot Artifacts (Opsional jika gagal/butuh cek)
+      - name: Upload Screenshot Artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: attendance-screenshots
           path: screenshots/*.png
-          retention-days: 7
+          retention-days: 3

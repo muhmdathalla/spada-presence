@@ -22,22 +22,30 @@ logging.basicConfig(
 )
 logger = logging.getLogger("Main")
 
-def process_course(spada, notifier, course: dict, token: str = None):
+def process_course(spada, notifier, course: dict, token: str = None, is_automated: bool = False):
     course_name = course.get("name")
     logger.info(f"=== Memproses Presensi: {course_name} ===")
     
     res = spada.run_attendance(course, password_token=token)
-    
-    status_icon = "✅" if res["status"] == "SUCCESS" else ("ℹ️" if res["status"] == "ALREADY_SUBMITTED" else "⚠️")
+    status = res.get("status")
+
+    # Format telegram message
+    status_icon = "✅" if status == "SUCCESS" else ("ℹ️" if status == "ALREADY_SUBMITTED" else "⚠️")
     
     caption = (
         f"{status_icon} <b>Laporan Presensi SPADA UPNYK</b>\n\n"
         f"📚 <b>Matkul:</b> {res['course_name']}\n"
         f"📅 <b>Waktu:</b> {res['timestamp']}\n"
-        f"📌 <b>Status:</b> {res['status']}\n"
+        f"📌 <b>Status:</b> {status}\n"
         f"💬 <b>Keterangan:</b> {res['message']}\n"
     )
 
+    # If it's an automated background poll and already submitted / not open, skip spamming Telegram
+    if is_automated and status in ["ALREADY_SUBMITTED", "NOT_OPEN"]:
+        logger.info(f"Skipping Telegram notification in auto-mode for status: {status}")
+        return res
+
+    # Send notification for SUCCESS, PASSWORD_REQUIRED, ERROR, or MANUAL runs
     if res.get("screenshot_path") and os.path.exists(res["screenshot_path"]):
         notifier.send_photo(res["screenshot_path"], caption=caption)
     else:
@@ -88,13 +96,13 @@ def main():
             logger.error(f"Matkul dengan kueri '{args.course}' tidak ditemukan di config/courses.json!")
             sys.exit(1)
 
-        process_course(spada, notifier, target_course, token=args.token)
+        process_course(spada, notifier, target_course, token=args.token, is_automated=False)
 
     elif args.all:
         logger.info("Menjalankan presensi untuk SELURUH matkul yang aktif di konfigurasi...")
         for c in courses:
             if c.get("enabled", True):
-                process_course(spada, notifier, c, token=args.token)
+                process_course(spada, notifier, c, token=args.token, is_automated=False)
 
     elif args.auto:
         current_courses = get_current_courses(courses, tolerance_minutes=15)
@@ -104,7 +112,7 @@ def main():
         
         logger.info(f"Ditemukan {len(current_courses)} matkul yang aktif saat ini. Memulai proses presensi...")
         for c in current_courses:
-            process_course(spada, notifier, c, token=args.token)
+            process_course(spada, notifier, c, token=args.token, is_automated=True)
 
     else:
         current_courses = get_current_courses(courses, tolerance_minutes=15)
@@ -112,7 +120,7 @@ def main():
             logger.info("Tidak ada jadwal matkul yang aktif pada jam dan hari ini. Gunakan --list untuk melihat jadwal atau --course <id> untuk tes.")
             return
         for c in current_courses:
-            process_course(spada, notifier, c, token=args.token)
+            process_course(spada, notifier, c, token=args.token, is_automated=True)
 
 if __name__ == "__main__":
     main()
