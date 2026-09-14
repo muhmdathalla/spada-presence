@@ -1,22 +1,44 @@
 name: SPADA UPNYK Auto Presence
 
 on:
-  # Penjadwalan cerdas: Cek otomatis setiap 10 menit selama jam perkuliahan berlangsung (WIB = UTC + 7)
+  # Penjadwalan cerdas: Jam perkuliahan spesifik (WIB = UTC + 7)
+  # Menggunakan dual-check per jadwal dan menit ganjil agar tidak di-drop oleh GitHub Actions scheduler
   schedule:
-    # SENIN: Rentang 10:00 - 15:40 WIB (03:00 - 08:40 UTC)
-    - cron: '*/10 3-8 * * 1'
+    # SENIN (Monday = 1)
+    - cron: '2 3 * * 1'    # 10:02 WIB - Sistem Operasi (Check 1)
+    - cron: '12 3 * * 1'   # 10:12 WIB - Sistem Operasi (Check 2)
+    - cron: '2 6 * * 1'    # 13:02 WIB - Praktikum Data Science (Check 1)
+    - cron: '7 6 * * 1'    # 13:07 WIB - Praktikum Data Science (Check 2)
+    - cron: '52 7 * * 1'   # 14:52 WIB - Administrasi Server (Check 1)
+    - cron: '2 8 * * 1'    # 15:02 WIB - Administrasi Server (Check 2)
 
-    # SELASA: Rentang 07:00 - 13:30 WIB (00:00 - 06:30 UTC)
-    - cron: '*/10 0-6 * * 2'
+    # SELASA (Tuesday = 2)
+    - cron: '2 0 * * 2'    # 07:02 WIB - Internet of Things (IoT) (Check 1)
+    - cron: '12 0 * * 2'   # 07:12 WIB - Internet of Things (IoT) (Check 2)
+    - cron: '2 3 * * 2'    # 10:02 WIB - Manajemen Proyek Perangkat Lunak (Check 1)
+    - cron: '12 3 * * 2'   # 10:12 WIB - Manajemen Proyek Perangkat Lunak (Check 2)
+    - cron: '2 6 * * 2'    # 13:02 WIB - Praktikum IoT (Check 1)
+    - cron: '7 6 * * 2'    # 13:07 WIB - Praktikum IoT (Check 2)
 
-    # KAMIS: Rentang 07:20 - 13:00 WIB (00:20 - 06:00 UTC)
-    - cron: '*/10 0-6 * * 4'
+    # KAMIS (Thursday = 4)
+    - cron: '27 0 * * 4'   # 07:27 WIB - Kriptografi (Check 1)
+    - cron: '33 0 * * 4'   # 07:33 WIB - Kriptografi (Check 2)
+    - cron: '32 5 * * 4'   # 12:32 WIB - Data Science (Check 1)
+    - cron: '38 5 * * 4'   # 12:38 WIB - Data Science (Check 2)
 
-    # JUMAT: Rentang 13:00 - 18:00 WIB (06:00 - 11:00 UTC)
-    - cron: '*/10 6-11 * * 5'
+    # JUMAT (Friday = 5)
+    - cron: '2 6 * * 5'    # 13:02 WIB - Pengolahan Citra (Check 1)
+    - cron: '12 6 * * 5'   # 13:12 WIB - Pengolahan Citra (Check 2)
+    - cron: '32 8 * * 5'   # 15:32 WIB - Penginderaan Jarak Jauh (Check 1)
+    - cron: '42 8 * * 5'   # 15:42 WIB - Penginderaan Jarak Jauh (Check 2)
 
-    # SABTU: Rentang 07:00 - 09:10 WIB (00:00 - 02:10 UTC)
-    - cron: '*/10 0-2 * * 6'
+    # SABTU (Saturday = 6)
+    - cron: '2 0 * * 6'    # 07:02 WIB - Kapita Selekta (Check 1)
+    - cron: '12 0 * * 6'   # 07:12 WIB - Kapita Selekta (Check 2)
+
+  # Remote Webhook Trigger (cron-job.org / curl / external scheduler)
+  repository_dispatch:
+    types: [auto-presence, run-presence]
 
   # Trigger Manual lewat menu GitHub Actions (Kapan saja)
   workflow_dispatch:
