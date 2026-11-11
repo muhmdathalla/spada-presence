@@ -95,3 +95,149 @@ playwright install chromium
   ```bash
   python main.py --course iot --headless false
   ```
+
+---
+
+## 👥 Panduan untuk Teman: Cara Kustomisasi Matkul & Jadwal Sendiri
+
+Jika temanmu ingin menggunakan repositori ini untuk jadwal matkul dan akunnya sendiri, ikuti 5 langkah mudah berikut:
+
+### Langkah 1: Buat Repositori Sendiri (Wajib PRIVATE)
+1. **PENTING**: Jangan jadikan repositori publik karena mengandung jadwal perkuliahan pribadi.
+2. Buat repositori baru di GitHub dengan status **Private**.
+3. Clone / copy file dari repositori ini ke repositori baru milik temanmu.
+
+---
+
+### Langkah 2: Cari Link & ID Matkul dari SPADA UPNYK
+Buka [SPADA UPNYK](https://spada.upnyk.ac.id), lalu untuk setiap matkul:
+1. **Link Halaman Matkul**:
+   - Buka matkul yang diambil, lihat URL di address bar browser:
+     `https://spada.upnyk.ac.id/course/view.php?id=56302`
+   - Angka `56302` adalah **`course_id`**.
+2. **Link Halaman Presensi (Attendance)**:
+   - Klik menu **Presensi / Kehadiran / Attendance** di dalam matkul tersebut.
+   - Lihat URL di address bar:
+     `https://spada.upnyk.ac.id/mod/attendance/view.php?id=813446`
+   - Angka `813446` adalah **`attendance_id`**, dan seluruh URL tersebut adalah **`attendance_url`**.
+
+---
+
+### Langkah 3: Ubah Konfigurasi Matkul (`config/courses.json`)
+Buka file `config/courses.json` dan sesuaikan daftar matkulnya. 
+
+#### Contoh Struktur 1 Matkul:
+```json
+{
+  "id": "nama-singkat-matkul",
+  "name": "Nama Lengkap Matkul",
+  "day": "Monday",
+  "day_id": "Senin",
+  "start_time": "10:00",
+  "end_time": "12:30",
+  "course_id": "56302",
+  "attendance_id": "813446",
+  "attendance_url": "https://spada.upnyk.ac.id/mod/attendance/view.php?id=813446",
+  "enabled": true
+}
+```
+
+#### Penjelasan Kolom:
+- **`id`**: Identifier unik, gunakan huruf kecil tanpa spasi (misal: `basis-data`, `pbo`, `jarkom`).
+- **`name`**: Nama mata kuliah (ditampilkan di notifikasi Telegram).
+- **`day`**: Hari dalam bahasa Inggris: `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`, `Saturday`, atau `Sunday`.
+- **`day_id`**: Hari dalam bahasa Indonesia: `Senin`, `Selasa`, `Rabu`, `Kamis`, `Jumat`, `Sabtu`, atau `Minggu`.
+- **`start_time`**: Jam mulai kelas dalam format 24 jam WIB (`HH:MM`, contoh: `"07:30"`).
+- **`end_time`**: Jam selesai kelas dalam format 24 jam WIB (`HH:MM`, contoh: `"10:00"`).
+- **`course_id`**: ID matkul dari URL SPADA.
+- **`attendance_id`**: ID attendance dari URL SPADA.
+- **`attendance_url`**: URL lengkap halaman attendance.
+- **`enabled`**: `true` untuk aktifkan auto-presensi, atau `false` untuk mematikan sementara.
+
+---
+
+### Langkah 4: Atur Jadwal Otomatis (Cron) di `.github/workflows/presence.yml`
+
+GitHub Actions berjalan di server cloud dengan patokan zona waktu **UTC (Universal Time Coordinated)**. Sedangkan Indonesia bagian barat menggunakan **WIB (UTC + 7)**.
+
+#### 🧮 Rumus Konversi WIB ke UTC:
+$$\text{Jam UTC} = \text{Jam WIB} - 7$$
+
+#### ⏰ Tabel Konversi Cepat (WIB ➔ UTC):
+| Jam Kuliah di Kampus (WIB) | Jam di Server GitHub (UTC) |
+| :---: | :---: |
+| 07:00 WIB | 00:00 UTC |
+| 08:00 WIB | 01:00 UTC |
+| 09:00 WIB | 02:00 UTC |
+| 10:00 WIB | 03:00 UTC |
+| 11:00 WIB | 04:00 UTC |
+| 12:00 WIB | 05:00 UTC |
+| 13:00 WIB | 06:00 UTC |
+| 14:00 WIB | 07:00 UTC |
+| 15:00 WIB | 08:00 UTC |
+| 16:00 WIB | 09:00 UTC |
+| 17:00 WIB | 10:00 UTC |
+
+#### 📅 Angka Hari dalam Cron GitHub:
+| Hari | Nilai Cron |
+| :---: | :---: |
+| Minggu | `0` |
+| Senin | `1` |
+| Selasa | `2` |
+| Rabu | `3` |
+| Kamis | `4` |
+| Jumat | `5` |
+| Sabtu | `6` |
+
+#### ⚙️ Cara Menulis Jadwal Cron:
+Buka `.github/workflows/presence.yml` pada bagian `schedule:`.
+Disarankan menggunakan format **pengecekan interval tiap 10 menit (`*/10`)** selama jam kuliah berlangsung, agar jika dosen baru membuka presensi di tengah perkuliahan, bot tetap bisa klik hadir.
+
+**Format syntax cron:**
+```text
+- cron: '*/10 <rentang_jam_utc> * * <hari>'
+```
+
+**Contoh Kasus:**
+1. **Matkul A**: Hari **Senin** jam **10:00 - 12:30 WIB**
+   - Hari: Senin = `1`
+   - Jam 10:00 WIB = 03:00 UTC | Jam 12:30 WIB = 05:30 UTC
+   - Rentang jam UTC: `3-5`
+   - Cron-nya: `- cron: '*/10 3-5 * * 1'`
+
+2. **Matkul B**: Hari **Rabu** jam **07:30 - 10:00 WIB**
+   - Hari: Rabu = `3`
+   - Jam 07:30 WIB = 00:30 UTC | Jam 10:00 WIB = 03:00 UTC
+   - Rentang jam UTC: `0-3`
+   - Cron-nya: `- cron: '*/10 0-3 * * 3'`
+
+3. **Matkul C**: Hari **Jumat** jam **13:00 - 15:30 WIB**
+   - Hari: Jumat = `5`
+   - Jam 13:00 WIB = 06:00 UTC | Jam 15:30 WIB = 08:30 UTC
+   - Rentang jam UTC: `6-8`
+   - Cron-nya: `- cron: '*/10 6-8 * * 5'`
+
+#### 💡 Jangan Lupa Update Dropdown Manual:
+Di file `.github/workflows/presence.yml`, pada bagian `workflow_dispatch` -> `options`, ganti daftar pilihan matkul sesuai dengan `id` matkul yang baru dibuat, contoh:
+```yaml
+        options:
+          - auto
+          - all
+          - basis-data
+          - jarkom
+          - pbo
+```
+
+---
+
+### Langkah 5: Masukkan Kredensial Pribadi ke GitHub Secrets
+Temanmu harus memasukkan akun SPADA dan bot Telegram miliknya sendiri ke repositori GitHub miliknya:
+1. Masuk ke repo GitHub miliknya > **Settings** > **Secrets and variables** > **Actions**.
+2. Klik **New repository secret** dan buat 4 secrets:
+   - `SPADA_USERNAME`: NIM temanmu.
+   - `SPADA_PASSWORD`: Password portal SPADA temanmu.
+   - `TELEGRAM_BOT_TOKEN`: Token API bot Telegram miliknya (dibuat via `@BotFather`).
+   - `TELEGRAM_CHAT_ID`: ID akun Telegram miliknya (didapat via `@userinfobot`).
+
+Selesai! Sekarang repositori temanmu akan berjalan otomatis sesuai jadwal matkulnya sendiri 24/7 di cloud! 🚀
+
